@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extension type="plugin" version="2.5" group="content" method="upgrade">
+    <name>PLG_CONTENT_TIMELINE</name>
+    <author>Nicolas OGIER</author>
+    <creationDate>6-April-2012</creationDate>
+    <copyright>This extension in released under the GNU/GPL License - http://www.gnu.org/copyleft/gpl.html</copyright>
+    <authorEmail>webmaster@nicolas-ogier.fr</authorEmail>
+    <authorUrl>http://www.nicolas-ogier.fr/download/timeline-joomla.html</authorUrl>
+    <version>2.5-1</version>
+    <description>PLG_CONTENT_TIMELINE_XML_DESCRIPTION</description>
+    <files>
+        <filename plugin="timeline">timeline.php</filename>
+        <filename plugin="timeline">index.html</filename>
+        <folder plugin="timeline">plugin_timeline</folder>
+    </files>
+    <languages folder="language">
+		<language tag="en-GB">en-GB/en-GB.plg_content_timeline.ini</language>
+		<language tag="en-GB">en-GB/en-GB.plg_content_timeline.sys.ini</language>
+		<language tag="fr-FR">fr-FR/fr-FR.plg_content_timeline.ini</language>
+		<language tag="fr-FR">fr-FR/fr-FR.plg_content_timeline.sys.ini</language>
+    </languages>
+    <config>
+	</config>
+</extension>
