@@ -1,6 +1,6 @@
 /* Verite
  * Verite JS Master
- * Version: 0.6
+ * Version: 0.5
  * Date: April 5, 2012
  * Copyright 2012 Verite unless part of Verite Timeline, 
  * if part of Timeline then it inherits Timeline's license.
@@ -96,14 +96,18 @@ if (typeof VMM == 'undefined') {
 	
 	/* Master Config
 	================================================== */
-	//VMM.master_config.youtube_array
-	//VMM.master_config.loadedJS
-
 	
 	VMM.master_config = ({
 		
 		init: function() {
 			return this;
+		},
+		
+		vp: "Pellentesque nibh felis, eleifend id, commodo in, interdum vitae, leo",
+		
+		keys: {
+			flickr: "RAIvxHY4hE/Elm5cieh4X5ptMyDpj7MYIxziGxi0WGCcy1s+yr7rKQ==",
+			google: "jwNGnYw4hE9lmAez4ll0QD+jo6SKBJFknkopLS4FrSAuGfIwyj57AusuR0s8dAo="
 		},
 		
 		youtube: {
@@ -112,6 +116,15 @@ if (typeof VMM == 'undefined') {
 			api_loaded:false,
 			que: []
 		},
+		
+		googlemaps: {
+			active: false,
+			map_active: false,
+			places_active: false,
+			array: [],
+			api_loaded:false,
+			que: []
+		}
 		
 	}).init();
 	
@@ -287,7 +300,7 @@ if (typeof VMM == 'undefined') {
 	};
 
 	// VMM.getJSON(url, the_function);
-	VMM.getJSON = function(url, the_function) {
+	VMM.getJSON = function(url, data, callback) {
 		if( typeof( jQuery ) != 'undefined' ){
 			
 			/* CHECK FOR IE AND USE Use Microsoft XDR
@@ -297,20 +310,36 @@ if (typeof VMM == 'undefined') {
 				var ie_url = url;
 
 				if (ie_url.match('^http://')){
+					trace("RUNNING GET JSON")
 				     //ie_url = ie_url.replace("http://","//");
-					$.getJSON(url, the_function);
+					return jQuery.getJSON(url, data, callback);
 				} else if (ie_url.match('^https://')) {
+					trace("RUNNING XDR");
 					ie_url = ie_url.replace("https://","http://");
 					var xdr = new XDomainRequest();
 					xdr.open("get", ie_url);
 					xdr.onload = function() {
 						var ie_json = VMM.parseJSON(xdr.responseText);
-						return the_function(ie_json);
+						trace(xdr.responseText);
+						if (type.of(ie_json) == "null" || type.of(ie_json) == "undefined") {
+							trace("IE JSON ERROR")
+						} else {
+							return data(ie_json)
+						}
+						
+								//.error(function() { trace("IE ERROR")})
+								//.success(function() { trace("IE SUCCESS")});
+								
+								
 					}
 					xdr.send();
+				} else {
+					return jQuery.getJSON(url, data, callback);
 				}
 			} else {
-				$.getJSON(url, the_function);
+				//$.getJSON(url, data);
+				return jQuery.getJSON(url, data, callback);
+				
 				
 			}
 		}
@@ -1286,11 +1315,11 @@ if (typeof VMM == 'undefined') {
 				
 				// CREDIT
 				if (data.credit != null && data.credit != "") {
-					creditElem = "<div class='credit'>" + data.credit + "</div>";
+					creditElem = "<div class='credit'>" + VMM.Util.linkify_with_twitter(data.credit, "_blank") + "</div>";
 				}
 				// CAPTION
 				if (data.caption != null && data.caption != "") {
-					captionElem = "<div class='caption'>" + data.caption + "</div>";
+					captionElem = "<div class='caption'>" + VMM.Util.linkify_with_twitter(data.caption, "_blank") + "</div>";
 				}
 				
 				// MEDIA TYPE
@@ -1301,7 +1330,7 @@ if (typeof VMM == 'undefined') {
 					mediaElem = "<img src='" + m.id + "'>";
 				} else if (m.type == "flickr") {
 					var flickr_id = "flickr_" + m.id;
-					mediaElem = "<img id='" + flickr_id + "_large" + "'>";
+					mediaElem = "<a href='" + m.link + "' target='_blank'><img id='" + flickr_id + "_large" + "'></a>";
 					VMM.ExternalAPI.flickr.getPhoto(m.id, "#" + flickr_id);
 				} else if (m.type == "googledoc") {
 					if (m.id.match(/docs.google.com/i)) {
@@ -1318,7 +1347,7 @@ if (typeof VMM == 'undefined') {
 				} else if (m.type == "vimeo") {
 					mediaElem = "<iframe class='media-frame video vimeo' frameborder='0' width='100%' height='100%' src='http://player.vimeo.com/video/" + m.id + "?title=0&amp;byline=0&amp;portrait=0&amp;color=ffffff'></iframe>";
 				} else if (m.type == "twitter"){
-					mediaElem = "<div class='twitter' id='" + m.id + "'>Loading Tweet</div>";
+					mediaElem = "<div class='twitter' id='" + "twitter_" + m.id + "'>Loading Tweet</div>";
 					//VMM.ExternalAPI.twitter.getHTML(m.id);
 					trace("TWITTER");
 					VMM.ExternalAPI.twitter.prettyHTML(m.id);
@@ -1330,7 +1359,10 @@ if (typeof VMM == 'undefined') {
 					mediaElem = "<div class='media-frame soundcloud' id='" + soundcloud_id + "'>Loading Sound</div>";
 					VMM.ExternalAPI.soundcloud.getSound(m.id, soundcloud_id)
 				} else if (m.type == "google-map") {
-					mediaElem = "<iframe class='media-frame map' frameborder='0' width='100%' height='100%' scrolling='no' marginheight='0' marginwidth='0' src='" + m.id + "&amp;output=embed'></iframe>"
+					//mediaElem = "<iframe class='media-frame map' frameborder='0' width='100%' height='100%' scrolling='no' marginheight='0' marginwidth='0' src='" + m.id + "&amp;output=embed'></iframe>"
+					var map_id = "googlemap_" + VMM.Util.unique_ID(7);
+					mediaElem = "<div class='media-frame map' id='" + map_id + "'>Loading Map...</div>";
+					VMM.ExternalAPI.googlemaps.getMap(m.id, map_id);
 				} else if (m.type == "unknown") { 
 					trace("NO KNOWN MEDIA TYPE FOUND TRYING TO JUST PLACE THE HTML"); 
 					mediaElem = VMM.Util.properQuotes(m.id); 
@@ -1419,6 +1451,7 @@ if (typeof VMM == 'undefined') {
 			//media.id = d.split('/photos/[^/]+/([0-9]+)/gi');
 			
 			media.id = d.split("photos\/")[1].split("/")[1];
+			media.link = d;
 			//media.id = media.id.split("/")[1];
 			//trace("FLICKR " + media.id);
 			success = true;
@@ -1473,10 +1506,8 @@ if (typeof VMM == 'undefined') {
 		}
 	}
 	
-	VMM.Keys = {
-		flickr: "6d6f59d8d30d79f4f402a7644d5073e3",
-		google: "AIzaSyDUHXB8hefYssfwGpySnQmzTqL9n0qZ3T4"
-	}
+	
+	
 	
 	VMM.ExternalAPI = {
 		
@@ -1491,16 +1522,9 @@ if (typeof VMM == 'undefined') {
 			onJSONLoaded: function(d) {
 				trace("TWITTER JSON LOADED");
 				var id = d.id;
-				VMM.attachElement("#"+id, VMM.ExternalAPI.twitter.linkify(d.html) );
+				VMM.attachElement("#"+id, VMM.Util.linkify_with_twitter(d.html) );
 			},
-			//somestring = VMM.ExternalAPI.twitter.linkify(d);
-			linkify: function(d) {
-				return d.replace(/[@]+[A-Za-z0-9-_]+/g, function(u) {
-					var username = u.replace("@","");
-					
-					return u.link("http://twitter.com/"+username);
-				});
-			},
+			
 			// VMM.ExternalAPI.twitter.parseTwitterDate(date);
 			parseTwitterDate: function(d) {
 				var date = new Date(Date.parse(d));
@@ -1547,10 +1571,7 @@ if (typeof VMM == 'undefined') {
 						/* FORMAT RESPONSE
 						================================================== */
 						var twit = "<div class='twitter'><blockquote><p>";
-						var td = VMM.Util.linkify(d.text);
-						td = td.replace(/(@([\w]+))/g,"<a href='http://twitter.com/$2'>$1</a>");
-						td = td.replace(/(#([\w]+))/g,"<a href='http://twitter.com/#search?q=%23$2'>$1</a>");
-						//twit += VMM.Util.linkify(d.text);
+						var td = VMM.Util.linkify_with_twitter(d.text, "_blank");
 						twit += td;
 						twit += "</p>";
 						
@@ -1568,7 +1589,10 @@ if (typeof VMM == 'undefined') {
 							var the_tweets = {tweetdata: tweetArray}
 							VMM.fireEvent(global, "TWEETSLOADED", the_tweets);
 						}
-					});
+					})
+					.success(function() { trace("second success"); })
+					.error(function() { trace("error"); })
+					.complete(function() { trace("complete"); });
 					
 				}
 					
@@ -1577,8 +1601,6 @@ if (typeof VMM == 'undefined') {
 			
 			// VMM.ExternalAPI.twitter.getTweetSearch(search string);
 			getTweetSearch: function(tweets, number_of_tweets) {
-				
-				
 				var _number_of_tweets = 40;
 				if (number_of_tweets != null && number_of_tweets != "") {
 					_number_of_tweets = number_of_tweets;
@@ -1593,9 +1615,7 @@ if (typeof VMM == 'undefined') {
 					for(var i = 0; i < d.results.length; i++) {
 						var tweet = {}
 						var twit = "<div class='twitter'><blockquote><p>";
-						var td = VMM.Util.linkify(d.results[i].text);
-						td = td.replace(/(@([\w]+))/g,"<a href='http://twitter.com/$2'>$1</a>");
-						td = td.replace(/(#([\w]+))/g,"<a href='http://twitter.com/#search?q=%23$2'>$1</a>");
+						var td = VMM.Util.linkify_with_twitter(d.results[i].text, "_blank");
 						twit += td;
 						twit += "</p>";
 						twit += "— " + d.results[i].from_user_name + " (<a href='https://twitter.com/" + d.results[i].from_user + "'>@" + d.results[i].from_user + "</a>) <a href='https://twitter.com/" + d.results[i].from_user + "/status/" + d.id + "'>" + VMM.ExternalAPI.twitter.prettyParseTwitterDate(d.results[i].created_at) + " </a></blockquote></div>";
@@ -1610,49 +1630,338 @@ if (typeof VMM == 'undefined') {
 			},
 			// VMM.ExternalAPI.twitter.prettyHTML(id);
 			prettyHTML: function(id) {
-				
-				// https://api.twitter.com/1/statuses/show.json?id=164165553810976768&include_entities=true&callback=?
+				var id = id.toString();
+				var error_obj = {
+					twitterid: id
+				};
 				var the_url = "http://api.twitter.com/1/statuses/show.json?id=" + id + "&include_entities=true&callback=?";
-				VMM.getJSON(the_url, VMM.ExternalAPI.twitter.formatJSON);
+				trace("id " + id);
+				var twitter_timeout = setTimeout(VMM.ExternalAPI.twitter.notFoundError, 4000, id);
+				VMM.getJSON(the_url, VMM.ExternalAPI.twitter.formatJSON)
+				
+					.error(function(jqXHR, textStatus, errorThrown) {
+						trace("TWITTER error");
+						trace("TWITTER ERROR: " + textStatus + " " + jqXHR.responseText);
+						VMM.attachElement("#twitter_"+id, "<p>ERROR LOADING TWEET " + id + "</p>" );
+					})
+					.success(function() {
+						clearTimeout(twitter_timeout);
+					});
+					
+				
+			},
+			
+			notFoundError: function(id) {
+				trace("TWITTER JSON ERROR TIMEOUT " + id);
+				VMM.attachElement("#twitter_" + id, "<p>TWEET NOT FOUND " + id + "</p>"  );
 			},
 			
 			formatJSON: function(d) {
 				trace("TWITTER JSON LOADED F");
+				trace(d);
 				var id = d.id_str;
 				
 				var twit = "<blockquote><p>";
-				var td = VMM.Util.linkify(d.text);
-				td = td.replace(/(@([\w]+))/g,"<a href='http://twitter.com/$2'>$1</a>");
-				td = td.replace(/(#([\w]+))/g,"<a href='http://twitter.com/#search?q=%23$2'>$1</a>");
+				var td = VMM.Util.linkify_with_twitter(d.text, "_blank");
+				//td = td.replace(/(@([\w]+))/g,"<a href='http://twitter.com/$2' target='_blank'>$1</a>");
+				//td = td.replace(/(#([\w]+))/g,"<a href='http://twitter.com/#search?q=%23$2' target='_blank'>$1</a>");
 				twit += td;
 				twit += "</p></blockquote>";
-				twit += " <a href='https://twitter.com/" + d.user.screen_name + "/status/" + d.id + "' alt='link to original tweet' title='link to original tweet'>" + "<span class='created-at'></span>" + " </a>";
+				twit += " <a href='https://twitter.com/" + d.user.screen_name + "/status/" + d.id + "' target='_blank' alt='link to original tweet' title='link to original tweet'>" + "<span class='created-at'></span>" + " </a>";
 				twit += "<div class='vcard author'>";
-				twit += "<a class='screen-name url' href='https://twitter.com/" + d.user.screen_name + "' data-screen-name='" + d.user.screen_name + "'>";
+				twit += "<a class='screen-name url' href='https://twitter.com/" + d.user.screen_name + "' data-screen-name='" + d.user.screen_name + "' target='_blank'>";
 				twit += "<span class='avatar'><img src=' " + d.user.profile_image_url + "'  alt=''></span>";
 				twit += "<span class='fn'>" + d.user.name + "</span>";
 				twit += "<span class='nickname'>@" + d.user.screen_name + "</span>";
 				twit += "</a>";
 				twit += "</div>";
 				
-				VMM.attachElement("#"+id, twit );
+				VMM.attachElement("#twitter_"+id.toString(), twit );
 				
 			}
 			
 		},
 		
-		maps: {
+		//VMM.ExternalAPI.googlemaps.getMap()
+		googlemaps: {
+			/*
+				//http://gsp2.apple.com/tile?api=1&style=slideshow&layers=default&lang=en_US&z={z}&x={x}&y={y}&v=9
+				
+				http://maps.google.com/maps?q=chicago&hl=en&sll=41.874961,-87.619054&sspn=0.159263,0.351906&t=t&hnear=Chicago,+Cook,+Illinois&z=11&output=kml
+				http://maps.google.com/maps/ms?msid=215143221704623082244.0004a53ad1e3365113a32&msa=0
+				http://maps.google.com/maps/ms?msid=215143221704623082244.0004a53ad1e3365113a32&msa=0&output=kml
+				http://maps.google.com/maps/ms?msid=215143221704623082244.0004a21354b1a2f188082&msa=0&ll=38.719738,-9.142599&spn=0.04172,0.087976&iwloc=0004a214c0e99e2da91e0
+				http://maps.google.com/maps?q=Bavaria&hl=en&ll=47.597829,9.398804&spn=1.010316,2.709503&sll=37.0625,-95.677068&sspn=73.579623,173.408203&hnear=Bavaria,+Germany&t=m&z=10&output=embed
+			*/
+			getMap: function(url, id) {
+				var map_vars = VMM.Util.getUrlVars(url);
+				trace(map_vars);
+				var map_url = "http://maps.googleapis.com/maps/api/js?key=" + Aes.Ctr.decrypt(VMM.master_config.keys.google, VMM.master_config.vp, 256) + "&libraries=places&sensor=false&callback=VMM.ExternalAPI.googlemaps.onMapAPIReady";
+				var map = {
+					url: url,
+					vars: map_vars,
+					id: id
+				}
+				
+				if (VMM.master_config.googlemaps.active) {
+					VMM.master_config.googlemaps.createMap(map);
+				} else {
+					
+					VMM.master_config.googlemaps.que.push(map);
+					
+					if (VMM.master_config.googlemaps.api_loaded) {
+						
+					} else {
+						
+						VMM.LoadLib.js(map_url, function() {
+							trace("Google Maps API Library Loaded");
+						});
+					}
+					
+				}
+				
+
+				
+			},
+			
+			onMapAPIReady: function() {
+				VMM.master_config.googlemaps.map_active = true;
+				VMM.master_config.googlemaps.places_active = true;
+				VMM.ExternalAPI.googlemaps.onAPIReady();
+			},
+			onPlacesAPIReady: function() {
+				VMM.master_config.googlemaps.places_active = true;
+				VMM.ExternalAPI.googlemaps.onAPIReady();
+			},
+			onAPIReady: function() {
+				if (!VMM.master_config.googlemaps.active) {
+					if (VMM.master_config.googlemaps.map_active && VMM.master_config.googlemaps.places_active) {
+						VMM.master_config.googlemaps.active = true;
+						for(var i = 0; i < VMM.master_config.googlemaps.que.length; i++) {
+							VMM.ExternalAPI.googlemaps.createMap(VMM.master_config.googlemaps.que[i]);
+						}
+					}
+				}
+			},
+			
+
+			
+			
+			map_subdomains: ["", "a.", "b.", "c.", "d."],
+			
+			
+			map_attribution: {
+				"stamen": "Map tiles by <a href='http://stamen.com'>Stamen Design</a>, under <a href='http://creativecommons.org/licenses/by/3.0'>CC BY 3.0</a>. Data by <a href='http://openstreetmap.org'>OpenStreetMap</a>, under <a href='http://creativecommons.org/licenses/by-sa/3.0'>CC BY SA</a>.",
+				"apple": "Map data &copy; 2012  Apple, Imagery &copy; 2012 Apple"
+			},
+						
+			map_providers: {
+				"toner": {
+					"url": "http://{S}tile.stamen.com/toner/{Z}/{X}/{Y}.png",
+					"minZoom": 0,
+					"maxZoom": 20,
+					"attribution": "stamen"
+					
+				},
+				"toner-lines": {
+					"url": "http://{S}tile.stamen.com/toner-lines/{Z}/{X}/{Y}.png",
+					"minZoom": 0,
+					"maxZoom": 20,
+					"attribution": "stamen"
+				},
+				"toner-labels": {
+					"url": "http://{S}tile.stamen.com/toner-labels/{Z}/{X}/{Y}.png",
+					"minZoom": 0,
+					"maxZoom": 20,
+					"attribution": "stamen"
+				},
+				"sterrain": {
+					"url": "http://{S}tile.stamen.com/terrain/{Z}/{X}/{Y}.jpg",
+					"minZoom": 4,
+					"maxZoom": 20,
+					"attribution": "stamen"
+				},
+				"apple": {
+					"url": "http://gsp2.apple.com/tile?api=1&style=slideshow&layers=default&lang=en_US&z={z}&x={x}&y={y}&v=9",
+					"minZoom": 4,
+					"maxZoom": 20,
+					"attribution": "apple"
+				},
+				"watercolor": {
+					"url": "http://{S}tile.stamen.com/watercolor/{Z}/{X}/{Y}.jpg",
+					"minZoom": 3,
+					"maxZoom": 16,
+					"attribution": "stamen"
+				}
+			},
+			
+			createMap: function(m) {
+				trace(VMM.ExternalAPI.googlemaps.stamen_map_attribution);
+				/* 	MAP PROVIDERS
+					Including Stamen Maps
+					http://maps.stamen.com/
+					Except otherwise noted, each of these map tile sets are © Stamen Design, under a Creative Commons Attribution (CC BY 3.0) license.
+				================================================== */
+				
+				var map_attribution = "";
+				
+				function mapProvider(name) {
+					if (name in VMM.ExternalAPI.googlemaps.map_providers) {
+						map_attribution = VMM.ExternalAPI.googlemaps.map_attribution[VMM.ExternalAPI.googlemaps.map_providers[name].attribution];
+						return VMM.ExternalAPI.googlemaps.map_providers[name];
+					} else {
+						throw 'No such provider: "' + name + '"';
+					}
+				}
+				
+				google.maps.VeriteMapType = function(name) {
+					var provider = mapProvider(name);
+					return google.maps.ImageMapType.call(this, {
+						"getTileUrl": function(coord, zoom) {
+							var index = (zoom + coord.x + coord.y) % VMM.ExternalAPI.googlemaps.map_subdomains.length;
+							return [
+								provider.url
+									.replace("{S}", VMM.ExternalAPI.googlemaps.map_subdomains[index])
+									.replace("{Z}", zoom)
+									.replace("{X}", coord.x)
+									.replace("{Y}", coord.y)
+									.replace("{z}", zoom)
+									.replace("{x}", coord.x)
+									.replace("{y}", coord.y)
+							];
+						},
+						"tileSize": new google.maps.Size(256, 256),
+						"name":     name,
+						"minZoom":  provider.minZoom,
+						"maxZoom":  provider.maxZoom
+					});
+				};
+				
+				google.maps.VeriteMapType.prototype = new google.maps.ImageMapType("_");
+				
+				/* Make the Map
+				================================================== */
+				var layer;
+				
+				
+				if (type.of(VMM.master_config.Timeline.maptype) == "string") {
+					layer = VMM.master_config.Timeline.maptype;
+				} else {
+					layer = "toner";
+				}
+				
+				var location = new google.maps.LatLng(41.875696,-87.624207);
+				var latlong;
+				var zoom = 11;
+				var has_location = false;
+				var has_zoom = false;
+				var map_bounds;
+				
+				if (type.of(VMM.Util.getUrlVars(m.url)["ll"]) == "string") {
+					has_location = true;
+					latlong = VMM.Util.getUrlVars(m.url)["ll"].split(",");
+					location = new google.maps.LatLng(parseFloat(latlong[0]),parseFloat(latlong[1]));
+					
+				} else if (type.of(VMM.Util.getUrlVars(m.url)["sll"]) == "string") {
+					has_location = true;
+					latlong = VMM.Util.getUrlVars(m.url)["sll"].split(",");
+					location = new google.maps.LatLng(parseFloat(latlong[0]),parseFloat(latlong[1]));
+					
+				} 
+				
+				if (type.of(VMM.Util.getUrlVars(m.url)["z"]) == "string") {
+					has_zoom = true;
+					zoom = parseFloat(VMM.Util.getUrlVars(m.url)["z"]);
+				}
+				
+				var map_options = {
+					zoom:zoom,
+					disableDefaultUI: true,
+					mapTypeControl: false,
+					zoomControl: true,
+					zoomControlOptions: {
+						style: google.maps.ZoomControlStyle.SMALL,
+						position: google.maps.ControlPosition.TOP_RIGHT
+					},
+					center: location,
+					mapTypeId: layer,
+					mapTypeControlOptions: {
+				        mapTypeIds: [layer]
+				    }
+				}
+				
+				var unique_map_id = m.id.toString() + "_gmap";
+				VMM.attachElement("#" + m.id, "<div class='google-map' id='" + unique_map_id + "' style='width=100%;height=100%;'></div>");
+				/* ATTRIBUTION
+				================================================== */
+				//var map_attribution_html = "<div class='map-attribution'><div class='attribution-text'>" + map_attribution + "</div></div>";
+				//VMM.appendElement("#" + m.id, map_attribution_html);
+				
+				var map = new google.maps.Map(document.getElementById(unique_map_id), map_options);
+				map.mapTypes.set(layer, new google.maps.VeriteMapType(layer));
+				
+				/* ATTRIBUTION
+				================================================== */
+				var map_attribution_html = "<div class='map-attribution'><div class='attribution-text'>" + map_attribution + "</div></div>";
+				VMM.appendElement("#"+unique_map_id, map_attribution_html);
+				//.map-attribution
+				//.attribution-text 
+				
+				loadKML();
+				
+				/* KML
+				================================================== */
+				function loadKML() {
+					var kml_url = m.url + "&output=kml";
+					kml_url = kml_url.replace("&output=embed", "");
+					
+					var kml_layer = new google.maps.KmlLayer(kml_url, {preserveViewport:true});
+					kml_layer.setMap(map);
+					
+					var infowindow = new google.maps.InfoWindow();
+
+					google.maps.event.addListenerOnce(kml_layer, "defaultviewport_changed", function() {
+						
+						
+						
+						if (has_location) {
+							map.panTo(location);
+						} 
+						
+						if (has_zoom) {
+							map.setZoom(zoom);
+						} else {
+							map.fitBounds(kml_layer.getDefaultViewport() );
+						}
+						
+						
+					});
+
+					google.maps.event.addListener(kml_layer, 'click', function(kmlEvent) {
+						var text = kmlEvent.featureData.description;
+						trace(kmlEvent.featureData.infoWindowHtml)
+						showInfoWindow(text);
+						function showInfoWindow(c) {
+							//trace("showInfoWindow")
+							infowindow.setContent(c);
+							infowindow.open(map);
+						}
+					});
+				}
+				
+			},
 			
 		},
 		
+		//VMM.ExternalAPI.flickr.getPhoto(mediaID, htmlID);
 		flickr: {
 			
 			getPhoto: function(mid, id) {
 				// http://api.flickr.com/services/rest/?method=flickr.photos.getSizes&api_key=6d6f59d8d30d79f4f402a7644d5073e3&photo_id=6115056146&format=json&nojsoncallback=1
-				var the_url = "http://api.flickr.com/services/rest/?method=flickr.photos.getSizes&api_key=" + VMM.Keys.flickr + "&photo_id=" + mid + "&format=json&jsoncallback=?";
+				var the_url = "http://api.flickr.com/services/rest/?method=flickr.photos.getSizes&api_key=" + Aes.Ctr.decrypt(VMM.master_config.keys.flickr, VMM.master_config.vp, 256) + "&photo_id=" + mid + "&format=json&jsoncallback=?";
 				VMM.getJSON(the_url, VMM.ExternalAPI.flickr.setPhoto);
 			},
-			//VMM.ExternalAPI.flickr.setPhoto(d);
+			
 			setPhoto: function(d) {
 				var flickr_id = d.sizes.size[0].url.split("photos\/")[1].split("/")[1];
 				var id = "flickr_" + flickr_id;
@@ -1705,6 +2014,7 @@ if (typeof VMM == 'undefined') {
 			},
 			
 			onAPIReady: function() {
+				trace("YOUTUBE API READY")
 				VMM.master_config.youtube.active = true;
 				
 				for(var i = 0; i < VMM.master_config.youtube.que.length; i++) {
@@ -1729,7 +2039,7 @@ if (typeof VMM == 'undefined') {
 						showinfo:0,
 						theme: 'light',
 						rel:0,
-						origin:'http://dev.verite.co'
+						origin:'http://timeline.verite.co'
 					},
 					videoId: id,
 					events: {
@@ -1991,11 +2301,15 @@ var type={
 	}
 };
 
-/* YOUTUBE API
+/*  YOUTUBE API READY
+	Can't find a way to customize this callback and keep it in the VMM namespace
+	Youtube wants it to be this function. 
 ================================================== */
 function onYouTubePlayerAPIReady() {
+	trace("GLOBAL YOUTUBE API CALLED")
 	VMM.ExternalAPI.youtube.onAPIReady();
 }
+
 
 /*	jQuery Easing v1.3
 	http://gsgd.co.uk/sandbox/jquery/easing/
@@ -2038,7 +2352,6 @@ if( typeof( jQuery ) != 'undefined' ){
 
 
 
-
 /*********************************************** 
      Begin VMM.Core.js 
 ***********************************************/ 
@@ -2047,132 +2360,12 @@ if( typeof( jQuery ) != 'undefined' ){
 ================================================== */
 
 
-/* Sequence
-================================================== */
-if(typeof VMM != 'undefined' && typeof VMM.Sequence == 'undefined') {
-	
-
-	VMM.Sequence = Class.extend({
-		
-		initialize: function(length,index) {
-			trace('sequence init');
-			
-			// PUBLIC
-			this.increment = 1;
-			this.decrement = 1;
-			this.wrap = false;
-			
-			// PRIVATE
-			this.length = (length == null) ? 0 : length;
-			this.index = (index == null) ? ((length == 0) ? -1 : 0) : (index >= length) ? length-1 : index;
-			this.synced = [];
-		},
-		setLength: function(i) {
-			
-			this.length = i;
-			
-			this.setIndex(this.index);
-		},
-		
-		getLength: function() {
-			
-			return this.length;
-		}, 
-		
-		setIndex: function(i) {
-			
-			if(this.length <= 0) {
-				
-				this.index = -1;
-				
-				return;
-			}
-			
-			if(i < 0) i = (this.wrap) ? this.length - (i%this.length) : 0;
-			else if(i >= this.length) i = (this.wrap) ? (i%this.length) : this.length-1;
-			
-			var pi = this.index;
-			
-			this.index = i;
-			
-			if(pi != this.index) {
-			
-				// update sequences
-				for(var j=0; j<this.synced.length; j++) {
-				
-					var s = this.synced[j];
-				
-					if(s.getIndex() != this.index) s.setIndex(this.index);
-				}
-			}
-		},
-		
-		getIndex: function() {
-			
-			return this.index;
-		},
-		
-		next: function() {
-			
-			this.setIndex(this.index+this.increment);
-		},
-		
-		prev: function () {
-			
-			this.setIndex(this.index-this.decrement);
-		},
-		
-		sync: function(s,bothWays) {
-			
-			if(s instanceof NYTMM.Sequence && s != this) {
-				
-				this.synced.push(s);
-				
-				if(bothWays) s.sync(this);
-				
-				return true;
-			}
-			
-			return false;
-		},
-		
-		unsync: function(s,bothWays) {
-			
-			// update sequences
-			for(var i=0; i<this.synced.length; i++) {
-				
-				if(this.synced[i] == s) {
-					
-					this.synced.splice(i,1);
-					
-					if(bothWays) s.unsync(this);
-					
-					return true;
-				}
-			}
-			
-			return false;
-		}
-		
-	});
-	
-}
-
 /* Slider
 ================================================== */
 if(typeof VMM != 'undefined' && typeof VMM.Slider == 'undefined') {
 	
 	VMM.Slider = function(parent, content_width, content_height, is_timeline) {
 		
-		/* DEVICE
-		================================================== */
-		/*
-		trace("VMM.Browser.OS");
-		trace(VMM.Browser.browser);
-		trace(VMM.Browser.version);
-		trace(VMM.Browser.OS);
-		trace(VMM.Browser.device);
-		*/
 		
 		/* PRIVATE VARS
 		================================================== */
@@ -2398,6 +2591,20 @@ if(typeof VMM != 'undefined' && typeof VMM.Slider == 'undefined') {
 				upDate();
 			}
 
+		}
+
+		function onKeypressNav(e) {
+			switch(e.keyCode) {
+				//right arrow
+				case 39:
+					onNextClick(e);
+				break;
+
+				//left arrow
+				case 37:
+					onPrevClick(e);
+				break;
+			}
 		}
 		
 		function onTouchUpdate(e, b) {
@@ -2635,6 +2842,7 @@ if(typeof VMM != 'undefined' && typeof VMM.Slider == 'undefined') {
 			
 			VMM.bindEvent(".nav-next", onNextClick);
 			VMM.bindEvent(".nav-previous", onPrevClick);
+			VMM.bindEvent(window, onKeypressNav, 'keydown');
 		}
 		
 		/* BUILD
@@ -2822,11 +3030,11 @@ if(typeof VMM != 'undefined' && typeof VMM.Util == 'undefined') {
 		// VMM.Util.date.get12HRTime(time, seconds_true);
 		date: {
 			// somestring = VMM.Util.date.month[2]; // Returns March
-			month: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]",
+			month: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
 			// somestring = VMM.Util.date.month_abbrev[1]; // Returns Feb.
-			month_abbr: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]",
+			month_abbr: ["Jan.", "Feb.", "March", "April", "May", "June", "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec."],
 			day: ["Sunday","Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-			day_abbr: ["Sun","Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+			day_abbr: ["Sun.","Mon.", "Tues.", "Wed.", "Thurs.", "Fri.", "Sat."],
 			hour: [1,2,3,4,5,6,7,8,9,10,11,12,1,2,3,4,5,6,7,8,9,10,11,12],
 			hour_suffix: ["am"],
 			//VMM.Util.date.prettyDate(d, is_abbr)
@@ -2981,25 +3189,49 @@ if(typeof VMM != 'undefined' && typeof VMM.Util == 'undefined') {
 		// VMM.Util.linkify();
 		linkify: function(text,targets,is_touch) {
 			
-			if(!text) return text;
-			
-			text = text.replace(/((https?\:\/\/|ftp\:\/\/)|(www\.))(\S+)(\w{2,4})(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/gi, function(url) {
+			// http://, https://, ftp://
+			var urlPattern = /\b(?:https?|ftp):\/\/[a-z0-9-+&@#\/%?=~_|!:,.;]*[a-z0-9-+&@#\/%=~_|]/gim;
 
-				var nice = url;
-				var _touch = "";
-				if(url.search('^https?:\/\/') < 0) url = 'http://'+url;
-				_touch = "onclick = 'void(0)'";
-				if(is_touch) {
-					_touch = "onclick = 'void(0)'";
-				}
-				
-				onclick = "void(0)";
-				if(targets === null || targets === "") return '<a href="'+ url + " " + _touch + '">'+ url +'</a>';
-				else return "<a href='"+ url + " " + _touch + " target='" +targets+"'>'" + url + "</a>" ;
-			});
+			// www. sans http:// or https://
+			var pseudoUrlPattern = /(^|[^\/])(www\.[\S]+(\b|$))/gim;
+
+			// Email addresses
+			var emailAddressPattern = /(([a-zA-Z0-9_\-\.]+)@[a-zA-Z_]+?(?:\.[a-zA-Z]{2,6}))+/gim;
 			
-			return text;
+
+			return text
+				.replace(urlPattern, "<a target='_blank' href='$&' onclick='void(0)'>$&</a>")
+				.replace(pseudoUrlPattern, "$1<a target='_blank' onclick='void(0)' href='http://$2'>$2</a>")
+				.replace(emailAddressPattern, "<a target='_blank' onclick='void(0)' href='mailto:$1'>$1</a>");
 		},
+		
+		linkify_with_twitter: function(text,targets,is_touch) {
+			
+			// http://, https://, ftp://
+			var urlPattern = /\b(?:https?|ftp):\/\/[a-z0-9-+&@#\/%?=~_|!:,.;]*[a-z0-9-+&@#\/%=~_|]/gim;
+			var url_pattern = /(\()((?:ht|f)tps?:\/\/[a-z0-9\-._~!$&'()*+,;=:\/?#[\]@%]+)(\))|(\[)((?:ht|f)tps?:\/\/[a-z0-9\-._~!$&'()*+,;=:\/?#[\]@%]+)(\])|(\{)((?:ht|f)tps?:\/\/[a-z0-9\-._~!$&'()*+,;=:\/?#[\]@%]+)(\})|(<|&(?:lt|#60|#x3c);)((?:ht|f)tps?:\/\/[a-z0-9\-._~!$&'()*+,;=:\/?#[\]@%]+)(>|&(?:gt|#62|#x3e);)|((?:^|[^=\s'"\]])\s*['"]?|[^=\s]\s+)(\b(?:ht|f)tps?:\/\/[a-z0-9\-._~!$'()*+,;=:\/?#[\]@%]+(?:(?!&(?:gt|#0*62|#x0*3e);|&(?:amp|apos|quot|#0*3[49]|#x0*2[27]);[.!&',:?;]?(?:[^a-z0-9\-._~!$&'()*+,;=:\/?#[\]@%]|$))&[a-z0-9\-._~!$'()*+,;=:\/?#[\]@%]*)*[a-z0-9\-_~$()*+=\/#[\]@%])/img;
+			var url_replace = '$1$4$7$10$13<a href="$2$5$8$11$14">$2$5$8$11$14</a>$3$6$9$12';
+			//return text.replace(url_pattern, url_replace);
+
+			// www. sans http:// or https://
+			var pseudoUrlPattern = /(^|[^\/])(www\.[\S]+(\b|$))/gim;
+
+			// Email addresses
+			var emailAddressPattern = /(([a-zA-Z0-9_\-\.]+)@[a-zA-Z_]+?(?:\.[a-zA-Z]{2,6}))+/gim;
+			
+			var twitterHandlePattern = /(@([\w]+))/g;
+			
+			var twitterSearchPattern = /(#([\w]+))/g;
+
+			return text
+				//.replace(urlPattern, "<a target='_blank' href='$&' onclick='void(0)'>$&</a>")
+				.replace(url_pattern, url_replace)
+				.replace(pseudoUrlPattern, "$1<a target='_blank' onclick='void(0)' href='http://$2'>$2</a>")
+				.replace(emailAddressPattern, "<a target='_blank' onclick='void(0)' href='mailto:$1'>$1</a>")
+				.replace(twitterHandlePattern, "<a href='http://twitter.com/$2' target='_blank' onclick='void(0)'>$1</a>")
+				.replace(twitterSearchPattern, "<a href='http://twitter.com/#search?q=%23$2' target='_blank' 'void(0)'>$1</a>");
+		},
+		
 		/* Turns plain text links into real links
 		================================================== */
 		// VMM.Util.unlinkify();
@@ -3049,7 +3281,10 @@ if(typeof VMM != 'undefined' && typeof VMM.Util == 'undefined') {
 		/* Get URL Variables
 		================================================== */
 		//	var somestring = VMM.Util.getUrlVars(str_url)["varname"];
-		getUrlVars: function(str) {
+		getUrlVars: function(string) {
+			
+			var str = string.toString();
+			
 			var vars = [], hash;
 			var hashes = str.slice(str.indexOf('?') + 1).split('&');
 			for(var i = 0; i < hashes.length; i++) {
@@ -3057,10 +3292,10 @@ if(typeof VMM != 'undefined' && typeof VMM.Util == 'undefined') {
 				vars.push(hash[0]);
 				vars[hash[0]] = hash[1];
 			}
-			trace(vars);
+			
 			return vars;
 		},
-		
+
 		/* Cleans up strings to become real HTML
 		================================================== */
 		toHTML: function(text) {
@@ -3188,6 +3423,32 @@ if(typeof VMM != 'undefined' && typeof VMM.Util == 'undefined') {
 		},
 		
 	}).init();
+	
+	//'string'.linkify();
+	if(!String.linkify) {
+		String.prototype.linkify = function() {
+
+			// http://, https://, ftp://
+			var urlPattern = /\b(?:https?|ftp):\/\/[a-z0-9-+&@#\/%?=~_|!:,.;]*[a-z0-9-+&@#\/%=~_|]/gim;
+
+			// www. sans http:// or https://
+			var pseudoUrlPattern = /(^|[^\/])(www\.[\S]+(\b|$))/gim;
+
+			// Email addresses
+			var emailAddressPattern = /(([a-zA-Z0-9_\-\.]+)@[a-zA-Z_]+?(?:\.[a-zA-Z]{2,6}))+/gim;
+			
+			var twitterHandlePattern = /(@([\w]+))/g;
+			
+			var twitterSearchPattern = /(#([\w]+))/g;
+
+			return this
+				.replace(urlPattern, '<a target="_blank" href="$&">$&</a>')
+				.replace(pseudoUrlPattern, '$1<a target="_blank" href="http://$2">$2</a>')
+				.replace(emailAddressPattern, '<a target="_blank" href="mailto:$1">$1</a>')
+				.replace(twitterHandlePattern, "<a href='http://twitter.com/$2' target='_blank'>$1</a>")
+				.replace(twitterSearchPattern, "<a href='http://twitter.com/#search?q=%23$2' target='_blank'>$1</a>");
+	    };
+	}
 	
 }
 
@@ -3720,13 +3981,481 @@ if(typeof VMM != 'undefined' && typeof VMM.LoadLib == 'undefined') {
 }( window.jQuery );
 
 /*********************************************** 
+     Begin AES.js 
+***********************************************/ 
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*  AES implementation in JavaScript (c) Chris Veness 2005-2011                                   */
+/*   - see http://csrc.nist.gov/publications/PubsFIPS.html#197                                    */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+var Aes = {};  // Aes namespace
+
+/**
+ * AES Cipher function: encrypt 'input' state with Rijndael algorithm
+ *   applies Nr rounds (10/12/14) using key schedule w for 'add round key' stage
+ *
+ * @param {Number[]} input 16-byte (128-bit) input state array
+ * @param {Number[][]} w   Key schedule as 2D byte-array (Nr+1 x Nb bytes)
+ * @returns {Number[]}     Encrypted output state array
+ */
+Aes.cipher = function(input, w) {    // main Cipher function [§5.1]
+  var Nb = 4;               // block size (in words): no of columns in state (fixed at 4 for AES)
+  var Nr = w.length/Nb - 1; // no of rounds: 10/12/14 for 128/192/256-bit keys
+
+  var state = [[],[],[],[]];  // initialise 4xNb byte-array 'state' with input [§3.4]
+  for (var i=0; i<4*Nb; i++) state[i%4][Math.floor(i/4)] = input[i];
+
+  state = Aes.addRoundKey(state, w, 0, Nb);
+
+  for (var round=1; round<Nr; round++) {
+    state = Aes.subBytes(state, Nb);
+    state = Aes.shiftRows(state, Nb);
+    state = Aes.mixColumns(state, Nb);
+    state = Aes.addRoundKey(state, w, round, Nb);
+  }
+
+  state = Aes.subBytes(state, Nb);
+  state = Aes.shiftRows(state, Nb);
+  state = Aes.addRoundKey(state, w, Nr, Nb);
+
+  var output = new Array(4*Nb);  // convert state to 1-d array before returning [§3.4]
+  for (var i=0; i<4*Nb; i++) output[i] = state[i%4][Math.floor(i/4)];
+  return output;
+}
+
+/**
+ * Perform Key Expansion to generate a Key Schedule
+ *
+ * @param {Number[]} key Key as 16/24/32-byte array
+ * @returns {Number[][]} Expanded key schedule as 2D byte-array (Nr+1 x Nb bytes)
+ */
+Aes.keyExpansion = function(key) {  // generate Key Schedule (byte-array Nr+1 x Nb) from Key [§5.2]
+  var Nb = 4;            // block size (in words): no of columns in state (fixed at 4 for AES)
+  var Nk = key.length/4  // key length (in words): 4/6/8 for 128/192/256-bit keys
+  var Nr = Nk + 6;       // no of rounds: 10/12/14 for 128/192/256-bit keys
+
+  var w = new Array(Nb*(Nr+1));
+  var temp = new Array(4);
+
+  for (var i=0; i<Nk; i++) {
+    var r = [key[4*i], key[4*i+1], key[4*i+2], key[4*i+3]];
+    w[i] = r;
+  }
+
+  for (var i=Nk; i<(Nb*(Nr+1)); i++) {
+    w[i] = new Array(4);
+    for (var t=0; t<4; t++) temp[t] = w[i-1][t];
+    if (i % Nk == 0) {
+      temp = Aes.subWord(Aes.rotWord(temp));
+      for (var t=0; t<4; t++) temp[t] ^= Aes.rCon[i/Nk][t];
+    } else if (Nk > 6 && i%Nk == 4) {
+      temp = Aes.subWord(temp);
+    }
+    for (var t=0; t<4; t++) w[i][t] = w[i-Nk][t] ^ temp[t];
+  }
+
+  return w;
+}
+
+/*
+ * ---- remaining routines are private, not called externally ----
+ */
+ 
+Aes.subBytes = function(s, Nb) {    // apply SBox to state S [§5.1.1]
+  for (var r=0; r<4; r++) {
+    for (var c=0; c<Nb; c++) s[r][c] = Aes.sBox[s[r][c]];
+  }
+  return s;
+}
+
+Aes.shiftRows = function(s, Nb) {    // shift row r of state S left by r bytes [§5.1.2]
+  var t = new Array(4);
+  for (var r=1; r<4; r++) {
+    for (var c=0; c<4; c++) t[c] = s[r][(c+r)%Nb];  // shift into temp copy
+    for (var c=0; c<4; c++) s[r][c] = t[c];         // and copy back
+  }          // note that this will work for Nb=4,5,6, but not 7,8 (always 4 for AES):
+  return s;  // see asmaes.sourceforge.net/rijndael/rijndaelImplementation.pdf
+}
+
+Aes.mixColumns = function(s, Nb) {   // combine bytes of each col of state S [§5.1.3]
+  for (var c=0; c<4; c++) {
+    var a = new Array(4);  // 'a' is a copy of the current column from 's'
+    var b = new Array(4);  // 'b' is a•{02} in GF(2^8)
+    for (var i=0; i<4; i++) {
+      a[i] = s[i][c];
+      b[i] = s[i][c]&0x80 ? s[i][c]<<1 ^ 0x011b : s[i][c]<<1;
+
+    }
+    // a[n] ^ b[n] is a•{03} in GF(2^8)
+    s[0][c] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3]; // 2*a0 + 3*a1 + a2 + a3
+    s[1][c] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3]; // a0 * 2*a1 + 3*a2 + a3
+    s[2][c] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3]; // a0 + a1 + 2*a2 + 3*a3
+    s[3][c] = a[0] ^ b[0] ^ a[1] ^ a[2] ^ b[3]; // 3*a0 + a1 + a2 + 2*a3
+  }
+  return s;
+}
+
+Aes.addRoundKey = function(state, w, rnd, Nb) {  // xor Round Key into state S [§5.1.4]
+  for (var r=0; r<4; r++) {
+    for (var c=0; c<Nb; c++) state[r][c] ^= w[rnd*4+c][r];
+  }
+  return state;
+}
+
+Aes.subWord = function(w) {    // apply SBox to 4-byte word w
+  for (var i=0; i<4; i++) w[i] = Aes.sBox[w[i]];
+  return w;
+}
+
+Aes.rotWord = function(w) {    // rotate 4-byte word w left by one byte
+  var tmp = w[0];
+  for (var i=0; i<3; i++) w[i] = w[i+1];
+  w[3] = tmp;
+  return w;
+}
+
+// sBox is pre-computed multiplicative inverse in GF(2^8) used in subBytes and keyExpansion [§5.1.1]
+Aes.sBox =  [0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
+             0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
+             0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
+             0x04,0xc7,0x23,0xc3,0x18,0x96,0x05,0x9a,0x07,0x12,0x80,0xe2,0xeb,0x27,0xb2,0x75,
+             0x09,0x83,0x2c,0x1a,0x1b,0x6e,0x5a,0xa0,0x52,0x3b,0xd6,0xb3,0x29,0xe3,0x2f,0x84,
+             0x53,0xd1,0x00,0xed,0x20,0xfc,0xb1,0x5b,0x6a,0xcb,0xbe,0x39,0x4a,0x4c,0x58,0xcf,
+             0xd0,0xef,0xaa,0xfb,0x43,0x4d,0x33,0x85,0x45,0xf9,0x02,0x7f,0x50,0x3c,0x9f,0xa8,
+             0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5,0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2,
+             0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17,0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73,
+             0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88,0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb,
+             0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
+             0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9,0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08,
+             0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6,0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a,
+             0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e,0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e,
+             0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
+             0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16];
+
+// rCon is Round Constant used for the Key Expansion [1st col is 2^(r-1) in GF(2^8)] [§5.2]
+Aes.rCon = [ [0x00, 0x00, 0x00, 0x00],
+             [0x01, 0x00, 0x00, 0x00],
+             [0x02, 0x00, 0x00, 0x00],
+             [0x04, 0x00, 0x00, 0x00],
+             [0x08, 0x00, 0x00, 0x00],
+             [0x10, 0x00, 0x00, 0x00],
+             [0x20, 0x00, 0x00, 0x00],
+             [0x40, 0x00, 0x00, 0x00],
+             [0x80, 0x00, 0x00, 0x00],
+             [0x1b, 0x00, 0x00, 0x00],
+             [0x36, 0x00, 0x00, 0x00] ]; 
+
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*  AES Counter-mode implementation in JavaScript (c) Chris Veness 2005-2011                      */
+/*   - see http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf                       */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+Aes.Ctr = {};  // Aes.Ctr namespace: a subclass or extension of Aes
+
+/** 
+ * Encrypt a text using AES encryption in Counter mode of operation
+ *
+ * Unicode multi-byte character safe
+ *
+ * @param {String} plaintext Source text to be encrypted
+ * @param {String} password  The password to use to generate a key
+ * @param {Number} nBits     Number of bits to be used in the key (128, 192, or 256)
+ * @returns {string}         Encrypted text
+ */
+Aes.Ctr.encrypt = function(plaintext, password, nBits) {
+  var blockSize = 16;  // block size fixed at 16 bytes / 128 bits (Nb=4) for AES
+  if (!(nBits==128 || nBits==192 || nBits==256)) return '';  // standard allows 128/192/256 bit keys
+  plaintext = Utf8.encode(plaintext);
+  password = Utf8.encode(password);
+  //var t = new Date();  // timer
+	
+  // use AES itself to encrypt password to get cipher key (using plain password as source for key 
+  // expansion) - gives us well encrypted key (though hashed key might be preferred for prod'n use)
+  var nBytes = nBits/8;  // no bytes in key (16/24/32)
+  var pwBytes = new Array(nBytes);
+  for (var i=0; i<nBytes; i++) {  // use 1st 16/24/32 chars of password for key
+    pwBytes[i] = isNaN(password.charCodeAt(i)) ? 0 : password.charCodeAt(i);
+  }
+  var key = Aes.cipher(pwBytes, Aes.keyExpansion(pwBytes));  // gives us 16-byte key
+  key = key.concat(key.slice(0, nBytes-16));  // expand key to 16/24/32 bytes long
+
+  // initialise 1st 8 bytes of counter block with nonce (NIST SP800-38A §B.2): [0-1] = millisec, 
+  // [2-3] = random, [4-7] = seconds, together giving full sub-millisec uniqueness up to Feb 2106
+  var counterBlock = new Array(blockSize);
+  
+  var nonce = (new Date()).getTime();  // timestamp: milliseconds since 1-Jan-1970
+  var nonceMs = nonce%1000;
+  var nonceSec = Math.floor(nonce/1000);
+  var nonceRnd = Math.floor(Math.random()*0xffff);
+  
+  for (var i=0; i<2; i++) counterBlock[i]   = (nonceMs  >>> i*8) & 0xff;
+  for (var i=0; i<2; i++) counterBlock[i+2] = (nonceRnd >>> i*8) & 0xff;
+  for (var i=0; i<4; i++) counterBlock[i+4] = (nonceSec >>> i*8) & 0xff;
+  
+  // and convert it to a string to go on the front of the ciphertext
+  var ctrTxt = '';
+  for (var i=0; i<8; i++) ctrTxt += String.fromCharCode(counterBlock[i]);
+
+  // generate key schedule - an expansion of the key into distinct Key Rounds for each round
+  var keySchedule = Aes.keyExpansion(key);
+  
+  var blockCount = Math.ceil(plaintext.length/blockSize);
+  var ciphertxt = new Array(blockCount);  // ciphertext as array of strings
+  
+  for (var b=0; b<blockCount; b++) {
+    // set counter (block #) in last 8 bytes of counter block (leaving nonce in 1st 8 bytes)
+    // done in two stages for 32-bit ops: using two words allows us to go past 2^32 blocks (68GB)
+    for (var c=0; c<4; c++) counterBlock[15-c] = (b >>> c*8) & 0xff;
+    for (var c=0; c<4; c++) counterBlock[15-c-4] = (b/0x100000000 >>> c*8)
+
+    var cipherCntr = Aes.cipher(counterBlock, keySchedule);  // -- encrypt counter block --
+    
+    // block size is reduced on final block
+    var blockLength = b<blockCount-1 ? blockSize : (plaintext.length-1)%blockSize+1;
+    var cipherChar = new Array(blockLength);
+    
+    for (var i=0; i<blockLength; i++) {  // -- xor plaintext with ciphered counter char-by-char --
+      cipherChar[i] = cipherCntr[i] ^ plaintext.charCodeAt(b*blockSize+i);
+      cipherChar[i] = String.fromCharCode(cipherChar[i]);
+    }
+    ciphertxt[b] = cipherChar.join(''); 
+  }
+
+  // Array.join is more efficient than repeated string concatenation in IE
+  var ciphertext = ctrTxt + ciphertxt.join('');
+  ciphertext = Base64.encode(ciphertext);  // encode in base64
+  
+  //alert((new Date()) - t);
+  return ciphertext;
+}
+
+/** 
+ * Decrypt a text encrypted by AES in counter mode of operation
+ *
+ * @param {String} ciphertext Source text to be encrypted
+ * @param {String} password   The password to use to generate a key
+ * @param {Number} nBits      Number of bits to be used in the key (128, 192, or 256)
+ * @returns {String}          Decrypted text
+ */
+Aes.Ctr.decrypt = function(ciphertext, password, nBits) {
+  var blockSize = 16;  // block size fixed at 16 bytes / 128 bits (Nb=4) for AES
+  if (!(nBits==128 || nBits==192 || nBits==256)) return '';  // standard allows 128/192/256 bit keys
+  ciphertext = Base64.decode(ciphertext);
+  password = Utf8.encode(password);
+  //var t = new Date();  // timer
+  
+  // use AES to encrypt password (mirroring encrypt routine)
+  var nBytes = nBits/8;  // no bytes in key
+  var pwBytes = new Array(nBytes);
+  for (var i=0; i<nBytes; i++) {
+    pwBytes[i] = isNaN(password.charCodeAt(i)) ? 0 : password.charCodeAt(i);
+  }
+  var key = Aes.cipher(pwBytes, Aes.keyExpansion(pwBytes));
+  key = key.concat(key.slice(0, nBytes-16));  // expand key to 16/24/32 bytes long
+
+  // recover nonce from 1st 8 bytes of ciphertext
+  var counterBlock = new Array(8);
+  ctrTxt = ciphertext.slice(0, 8);
+  for (var i=0; i<8; i++) counterBlock[i] = ctrTxt.charCodeAt(i);
+  
+  // generate key schedule
+  var keySchedule = Aes.keyExpansion(key);
+
+  // separate ciphertext into blocks (skipping past initial 8 bytes)
+  var nBlocks = Math.ceil((ciphertext.length-8) / blockSize);
+  var ct = new Array(nBlocks);
+  for (var b=0; b<nBlocks; b++) ct[b] = ciphertext.slice(8+b*blockSize, 8+b*blockSize+blockSize);
+  ciphertext = ct;  // ciphertext is now array of block-length strings
+
+  // plaintext will get generated block-by-block into array of block-length strings
+  var plaintxt = new Array(ciphertext.length);
+
+  for (var b=0; b<nBlocks; b++) {
+    // set counter (block #) in last 8 bytes of counter block (leaving nonce in 1st 8 bytes)
+    for (var c=0; c<4; c++) counterBlock[15-c] = ((b) >>> c*8) & 0xff;
+    for (var c=0; c<4; c++) counterBlock[15-c-4] = (((b+1)/0x100000000-1) >>> c*8) & 0xff;
+
+    var cipherCntr = Aes.cipher(counterBlock, keySchedule);  // encrypt counter block
+
+    var plaintxtByte = new Array(ciphertext[b].length);
+    for (var i=0; i<ciphertext[b].length; i++) {
+      // -- xor plaintxt with ciphered counter byte-by-byte --
+      plaintxtByte[i] = cipherCntr[i] ^ ciphertext[b].charCodeAt(i);
+      plaintxtByte[i] = String.fromCharCode(plaintxtByte[i]);
+    }
+    plaintxt[b] = plaintxtByte.join('');
+  }
+
+  // join array of blocks into single plaintext string
+  var plaintext = plaintxt.join('');
+  plaintext = Utf8.decode(plaintext);  // decode from UTF8 back to Unicode multi-byte chars
+  
+  //alert((new Date()) - t);
+  return plaintext;
+}
+
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*  Base64 class: Base 64 encoding / decoding (c) Chris Veness 2002-2011                          */
+/*    note: depends on Utf8 class                                                                 */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+var Base64 = {};  // Base64 namespace
+
+Base64.code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+
+/**
+ * Encode string into Base64, as defined by RFC 4648 [http://tools.ietf.org/html/rfc4648]
+ * (instance method extending String object). As per RFC 4648, no newlines are added.
+ *
+ * @param {String} str The string to be encoded as base-64
+ * @param {Boolean} [utf8encode=false] Flag to indicate whether str is Unicode string to be encoded 
+ *   to UTF8 before conversion to base64; otherwise string is assumed to be 8-bit characters
+ * @returns {String} Base64-encoded string
+ */ 
+Base64.encode = function(str, utf8encode) {  // http://tools.ietf.org/html/rfc4648
+  utf8encode =  (typeof utf8encode == 'undefined') ? false : utf8encode;
+  var o1, o2, o3, bits, h1, h2, h3, h4, e=[], pad = '', c, plain, coded;
+  var b64 = Base64.code;
+   
+  plain = utf8encode ? str.encodeUTF8() : str;
+  
+  c = plain.length % 3;  // pad string to length of multiple of 3
+  if (c > 0) { while (c++ < 3) { pad += '='; plain += '\0'; } }
+  // note: doing padding here saves us doing special-case packing for trailing 1 or 2 chars
+   
+  for (c=0; c<plain.length; c+=3) {  // pack three octets into four hexets
+    o1 = plain.charCodeAt(c);
+    o2 = plain.charCodeAt(c+1);
+    o3 = plain.charCodeAt(c+2);
+      
+    bits = o1<<16 | o2<<8 | o3;
+      
+    h1 = bits>>18 & 0x3f;
+    h2 = bits>>12 & 0x3f;
+    h3 = bits>>6 & 0x3f;
+    h4 = bits & 0x3f;
+
+    // use hextets to index into code string
+    e[c/3] = b64.charAt(h1) + b64.charAt(h2) + b64.charAt(h3) + b64.charAt(h4);
+  }
+  coded = e.join('');  // join() is far faster than repeated string concatenation in IE
+  
+  // replace 'A's from padded nulls with '='s
+  coded = coded.slice(0, coded.length-pad.length) + pad;
+   
+  return coded;
+}
+
+/**
+ * Decode string from Base64, as defined by RFC 4648 [http://tools.ietf.org/html/rfc4648]
+ * (instance method extending String object). As per RFC 4648, newlines are not catered for.
+ *
+ * @param {String} str The string to be decoded from base-64
+ * @param {Boolean} [utf8decode=false] Flag to indicate whether str is Unicode string to be decoded 
+ *   from UTF8 after conversion from base64
+ * @returns {String} decoded string
+ */ 
+Base64.decode = function(str, utf8decode) {
+  utf8decode =  (typeof utf8decode == 'undefined') ? false : utf8decode;
+  var o1, o2, o3, h1, h2, h3, h4, bits, d=[], plain, coded;
+  var b64 = Base64.code;
+
+  coded = utf8decode ? str.decodeUTF8() : str;
+  
+  
+  for (var c=0; c<coded.length; c+=4) {  // unpack four hexets into three octets
+    h1 = b64.indexOf(coded.charAt(c));
+    h2 = b64.indexOf(coded.charAt(c+1));
+    h3 = b64.indexOf(coded.charAt(c+2));
+    h4 = b64.indexOf(coded.charAt(c+3));
+      
+    bits = h1<<18 | h2<<12 | h3<<6 | h4;
+      
+    o1 = bits>>>16 & 0xff;
+    o2 = bits>>>8 & 0xff;
+    o3 = bits & 0xff;
+    
+    d[c/4] = String.fromCharCode(o1, o2, o3);
+    // check for padding
+    if (h4 == 0x40) d[c/4] = String.fromCharCode(o1, o2);
+    if (h3 == 0x40) d[c/4] = String.fromCharCode(o1);
+  }
+  plain = d.join('');  // join() is far faster than repeated string concatenation in IE
+   
+  return utf8decode ? plain.decodeUTF8() : plain; 
+}
+
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*  Utf8 class: encode / decode between multi-byte Unicode characters and UTF-8 multiple          */
+/*              single-byte character encoding (c) Chris Veness 2002-2011                         */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+var Utf8 = {};  // Utf8 namespace
+
+/**
+ * Encode multi-byte Unicode string into utf-8 multiple single-byte characters 
+ * (BMP / basic multilingual plane only)
+ *
+ * Chars in range U+0080 - U+07FF are encoded in 2 chars, U+0800 - U+FFFF in 3 chars
+ *
+ * @param {String} strUni Unicode string to be encoded as UTF-8
+ * @returns {String} encoded string
+ */
+Utf8.encode = function(strUni) {
+  // use regular expressions & String.replace callback function for better efficiency 
+  // than procedural approaches
+  var strUtf = strUni.replace(
+      /[\u0080-\u07ff]/g,  // U+0080 - U+07FF => 2 bytes 110yyyyy, 10zzzzzz
+      function(c) { 
+        var cc = c.charCodeAt(0);
+        return String.fromCharCode(0xc0 | cc>>6, 0x80 | cc&0x3f); }
+    );
+  strUtf = strUtf.replace(
+      /[\u0800-\uffff]/g,  // U+0800 - U+FFFF => 3 bytes 1110xxxx, 10yyyyyy, 10zzzzzz
+      function(c) { 
+        var cc = c.charCodeAt(0); 
+        return String.fromCharCode(0xe0 | cc>>12, 0x80 | cc>>6&0x3F, 0x80 | cc&0x3f); }
+    );
+  return strUtf;
+}
+
+/**
+ * Decode utf-8 encoded string back into multi-byte Unicode characters
+ *
+ * @param {String} strUtf UTF-8 string to be decoded back to Unicode
+ * @returns {String} decoded string
+ */
+Utf8.decode = function(strUtf) {
+  // note: decode 3-byte chars first as decoded 2-byte strings could appear to be 3-byte char!
+  var strUni = strUtf.replace(
+      /[\u00e0-\u00ef][\u0080-\u00bf][\u0080-\u00bf]/g,  // 3-byte chars
+      function(c) {  // (note parentheses for precence)
+        var cc = ((c.charCodeAt(0)&0x0f)<<12) | ((c.charCodeAt(1)&0x3f)<<6) | ( c.charCodeAt(2)&0x3f); 
+        return String.fromCharCode(cc); }
+    );
+  strUni = strUni.replace(
+      /[\u00c0-\u00df][\u0080-\u00bf]/g,                 // 2-byte chars
+      function(c) {  // (note parentheses for precence)
+        var cc = (c.charCodeAt(0)&0x1f)<<6 | c.charCodeAt(1)&0x3f;
+        return String.fromCharCode(cc); }
+    );
+  return strUni;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+/*********************************************** 
      Begin timeline.js 
 ***********************************************/ 
 
 /*!
-	Verite Timeline 0.85
+	Open Timeline 0.89
 	Designed and built by Zach Wise digitalartwork.net
-	Date: March 30, 2012
+	Date: April 8, 2012
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -3751,7 +4480,6 @@ if(typeof VMM != 'undefined' && typeof VMM.LoadLib == 'undefined') {
 	-	Support feeds from popular sources
 	-	Storify integration
 	-	Code optimization
-	-	Clean up config flow
 	-	Possible tagging of events (depends on usability factors)
 	
 */
@@ -3765,13 +4493,18 @@ if(typeof VMM != 'undefined' && typeof VMM.LoadLib == 'undefined') {
 // @codekit-prepend "VMM.Util.js";
 // @codekit-prepend "VMM.LoadLib.js";
 // @codekit-prepend "bootstrap-tooltip.js";
+// @codekit-prepend "AES.js";
 
-/* Timeline Class contained in VMM (verite) namespace
+/* Open Timeline Class contained in VMM (verite) namespace
 ================================================== */
 
 if(typeof VMM != 'undefined' && typeof VMM.Timeline == 'undefined') {
 	
-	VMM.Timeline = function(w, h) {
+	
+	
+	VMM.Timeline = function(w, h, conf) {
+		var version = "0.89";
+		trace("OPEN TIMELINE VERSION " + version);
 		
 		var $timeline = VMM.getElement("#timeline"); // expecting name only for parent
 		var $feedback;
@@ -3806,7 +4539,16 @@ if(typeof VMM != 'undefined' && typeof VMM.Timeline == 'undefined') {
 		
 		/* CONFIG
 		================================================== */
-		var config = {};
+		var config = VMM.Timeline.Config;
+		VMM.master_config.Timeline = VMM.Timeline.Config;
+		
+		/* 	MAP TYPE
+			options include 
+			Stamen Maps		"toner", "watercolor", "sterrain", "toner-lines", "toner-labels" 
+			Apple			"apple" 
+			Google			"HYBRID", "ROADMAP", "SATELLITE", "TERRAIN"
+		================================================== */
+		config.maptype = "toner";
 		config.interval = 10;
 		config.something = 0;
 		config.width = 960;
@@ -3830,16 +4572,34 @@ if(typeof VMM != 'undefined' && typeof VMM.Timeline == 'undefined') {
 			config.height = VMM.Element.height($timeline);
 		}
 		
+		config.nav_width = config.width;
+		config.nav_height = 200;
+		config.feature_width = config.width;
+		
 		if (VMM.Browser.device == "mobile") {
-			config.nav_width = config.width;
-			config.nav_height = 200;
-			config.feature_width = config.width;
 			config.feature_height = config.height;
 		} else {
-			config.nav_width = config.width;
-			config.nav_height = 200;
-			config.feature_width = config.width;
 			config.feature_height = config.height - config.nav_height;
+		}
+		
+		/* APPLY SUPPLIED CONFIG TO TIMELINE CONFIG
+		================================================== */
+		
+		if (typeof timeline_config == 'object') {
+			trace("HAS TIMELINE CONFIG");
+		    var x;
+			for (x in timeline_config) {
+				if (Object.prototype.hasOwnProperty.call(timeline_config, x)) {
+					config[x] = timeline_config[x];
+				}
+			}
+		} else if (typeof conf == 'object') {
+			var x;
+			for (x in conf) {
+				if (Object.prototype.hasOwnProperty.call(conf, x)) {
+					config[x] = conf[x];
+				}
+			}
 		}
 		
 		/* CHECK FOR IE7
@@ -3850,12 +4610,6 @@ if(typeof VMM != 'undefined' && typeof VMM.Timeline == 'undefined') {
 				ie7 = true;
 			}
 		}
-		
-
-		
-		/* VER
-		================================================== */
-		this.ver = "0.85";
 		
 		
 		/* ON EVENT
@@ -4034,14 +4788,14 @@ if(typeof VMM != 'undefined' && typeof VMM.Timeline == 'undefined') {
 					if (d.type == "tweets") {
 						
 					} else if (dd.type == "start") {
-						c._text += VMM.createElement("h2", d.headline, "start");
+						c._text += VMM.createElement("h2", VMM.Util.linkify_with_twitter(d.headline, "_blank"), "start");
 					} else {
-						c._text += VMM.createElement("h3", d.headline);
+						c._text += VMM.createElement("h3", VMM.Util.linkify_with_twitter(d.headline, "_blank"));
 					}
 				}
 				if (d.text != null && d.text != "") {
 					_hastext = true;
-					c._text += VMM.createElement("p", d.text);
+					c._text += VMM.createElement("p", VMM.Util.linkify_with_twitter(d.text, "_blank"));
 				}
 				
 				c._text = VMM.createElement("div", c._text, "container");
@@ -4357,32 +5111,24 @@ if(typeof VMM != 'undefined' && typeof VMM.Timeline == 'undefined') {
 			week: {}
 		};
 		
-		var config = {
-			interval: 10,
-			something: 0,
-			width: 900,
-			height: 150,
-			ease: "easeInOutExpo",
-			duration: 1000,
-			nav_width: 100,
-			nav_height: 200,
-			timeline: false,
-			spacing: 15,
-			marker_width: 150,
-			marker_height: 48,
-			density: 2,
-			timeline_width: 900,
-			interval_width: 200,
-			rows: [1, 1, 1],
-			multiplier: 6,
-			max_multiplier:16,
-			min_multiplier:1,
-			has_start_page:false,
-		};
-		 
+		/* ADD to Config
+		================================================== */
+		var config = VMM.Timeline.Config;
+		config.something = 0;
+		config.nav_width = 100;
+		config.nav_height = 200;
+		config.timeline = false;
+		config.marker_width = 150;
+		config.marker_height = 48;
+		config.density = 2;
+		config.timeline_width = 900;
+		config.interval_width = 200;
+		config.rows = [1, 1, 1];
+		config.multiplier = 6;
+		config.max_multiplier = 16;
+		config.min_multiplier = 1;
+		config.has_start_page = false;
 		
-		
-		//config.rows = [1, config.marker_height, config.marker_height*2];
 		config.rows = [config.marker_height, config.marker_height*2, 1];
 		
 		if (content_width != null && content_width != "") {
@@ -5460,7 +6206,9 @@ if(typeof VMM != 'undefined' && typeof VMM.Timeline == 'undefined') {
 		
 	};
 	
-
+	VMM.Timeline.Config = {
+		
+	};
 	/* 	SOURCE DATA PROCESSOR
 	================================================== */
 	VMM.Timeline.DataObj = {

@@ -1,6 +1,6 @@
 <?php
 /**
- *  @Copyright
+ *  @Copyright   Copyright (C) 2012 by Nicolas OGIER www.nicolas-ogier.fr
  *  @package     TIMELINE - op2k_timeline - Timeline for Joomla 2.5
  *  @author      Nicolas OGIER {@link http://www.nicolas-ogier.fr}
  *  @version     2.5-1.0 - 06-April-2012
